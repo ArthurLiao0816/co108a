@@ -3,7 +3,7 @@
 int main()
 {
     int i;
-    for(i=0;i<16;i++){
-        printf("Bit(in=in[%d],load=load,out=out[%d]);\n",i,i);
+    for(i=0;i<8;i++){
+        printf("Register(in=in,load=s%d,out=out%d);\n",i+1,i+1);
     }
 }
