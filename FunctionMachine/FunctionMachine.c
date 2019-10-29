@@ -3,7 +3,7 @@
 int main()
 {
     int i;
-    for(i=0;i<14;i++){
-        printf("Or(a=o%d,b=out[%d],out=o%d);\n",i+1,i+2,i+2);
+    for(i=0;i<16;i++){
+        printf("Bit(in=in[%d],load=load,out=out[%d]);\n",i,i);
     }
 }
