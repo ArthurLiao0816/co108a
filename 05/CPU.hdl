@@ -40,4 +40,45 @@ CHIP CPU {
 
     PARTS:
     // Put your code here:
+    //Decoder
+    Or16(a=instruction,b=false,out[15]=isC,out[12]=a,out[11]=c1,out[10]=c2,out[9]=c3,out[8]=c4,out[7]=c5,out[6]=c6,out[5]=d1,out[4]=d2,out[3]=d3,out[2]=j1,out[1]=j2,out[0]=j3);
+
+    //MUX16-1
+    Mux16(a=instruction, b=ALUout, sel=isC, out=Ain);
+
+    //A Register
+    Not(in=isC, out=isA);
+    And(a=isC, b=d1, out=AgoALU);        //(isC & di)=AgoALU=1代表:在instruction是C指令的前提下，ALU會從A暫存器載入A的值
+    Or(a=isA, b=AgoALU, out=Aload);      //若instruction是A指令或AgoALU=1,A暫存器會輸出A值
+    ARegister(in=Ain, load=Aload, out=Aout, out[0..14]=addressM, PCin);
+
+    //D Register
+    And(a=isC,b=d2,out=Dload);
+    DRegister(in=ALUout,load=Dload,out=Dout);
+
+    //Mux16-2
+    Mux16(a=Aout,b=inM,sel=a,out=ALUin);
+
+    //ALU do Algorithm
+    ALU(x=Dout,y=ALUin,zx=,nx=,zy=,ny=,f=,no=,out=outM,out=ALUout,out=outM,zr=zr,ng=ng);
+
+    //Write M
+    or(a=d3,b=false,out=writeM);
+
+    //PC
+    Or(a=j1,b=j2,out=jtmp);
+    Or(a=jtmp,b=j3,out=selinc);
+    Mux(a=true,b=false,sel=selinc,out=inc);
+    Not(in=zr,out=nzr);
+    Not(in=nr,out=nnr);
+    And(a=nzr,b=nnr,out=pr);
+
+    //判斷輸出是否符合j1,j2,j3
+    And(a=j1,b=nr,out=cj1);
+    And(a=j2,b=zr,out=cj2);
+    And(a=j3,b=pr,out=cj3);
+    And(a=cj1,b=cj2,out=ctemp);
+    And(a=ctemp,b=cj3,out=load);
+
+    PC(in=PCin,load=load,inc=inc,reset=reset,out=out,out[0..14]=pc);
 }

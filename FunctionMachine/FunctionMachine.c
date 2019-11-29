@@ -3,7 +3,7 @@
 int main()
 {
     int i;
-    for(i=1;i<=8;i++){
-        printf("RAM4K(in=in,load=s%d,address=address[0..10],out=out%d);\n",i,i);
+    for(i=11;i>5;i--){
+        printf("out[%d]=c%d,",i,12-i);
     }
 }
