@@ -41,7 +41,7 @@ CHIP CPU {
     PARTS:
     // Put your code here:
     //Decoder
-    Or16(a=instruction,b=false,out[15]=isC,out[12]=a,out[11]=c1,out[10]=c2,out[9]=c3,out[8]=c4,out[7]=c5,out[6]=c6,out[5]=d1,out[4]=d2,out[3]=d3,out[2]=j1,out[1]=j2,out[0]=j3);
+    Or16(a=instruction,b=false,out[15]=isC,out[12]=A,out[11]=c1,out[10]=c2,out[9]=c3,out[8]=c4,out[7]=c5,out[6]=c6,out[5]=d1,out[4]=d2,out[3]=d3,out[2]=j1,out[1]=j2,out[0]=j3);
 
     //MUX16-1
     Mux16(a=instruction, b=ALUout, sel=isC, out=Ain);
@@ -50,35 +50,95 @@ CHIP CPU {
     Not(in=isC, out=isA);
     And(a=isC, b=d1, out=AgoALU);        //(isC & di)=AgoALU=1代表:在instruction是C指令的前提下，ALU會從A暫存器載入A的值
     Or(a=isA, b=AgoALU, out=Aload);      //若instruction是A指令或AgoALU=1,A暫存器會輸出A值
-    ARegister(in=Ain, load=Aload, out=Aout, out[0..14]=addressM, PCin);
+    ARegister(in=Ain, load=Aload, out=Aout, out[0..14]=addressM);
 
     //D Register
     And(a=isC,b=d2,out=Dload);
     DRegister(in=ALUout,load=Dload,out=Dout);
 
     //Mux16-2
-    Mux16(a=Aout,b=inM,sel=a,out=ALUin);
+    Mux16(a=Aout,b=inM,sel=A,out=ALUin);
 
     //ALU do Algorithm
-    ALU(x=Dout,y=ALUin,zx=,nx=,zy=,ny=,f=,no=,out=outM,out=ALUout,out=outM,zr=zr,ng=ng);
+    ALU(x=Dout,y=ALUin,zx=c1,nx=c2,zy=c3,ny=c4,f=c5,no=c6,out=outM,out=ALUout,zr=zr,ng=ng);
 
     //Write M
-    or(a=d3,b=false,out=writeM);
+    And(a=d3,b=isC,out=writeM);
 
-    //PC
-    Or(a=j1,b=j2,out=jtmp);
-    Or(a=jtmp,b=j3,out=selinc);
-    Mux(a=true,b=false,sel=selinc,out=inc);
+    //大於零的條件
     Not(in=zr,out=nzr);
-    Not(in=nr,out=nnr);
-    And(a=nzr,b=nnr,out=pr);
+    Not(in=ng,out=nng);
+    And(a=nzr,b=nng,out=pr);
 
-    //判斷輸出是否符合j1,j2,j3
-    And(a=j1,b=nr,out=cj1);
-    And(a=j2,b=zr,out=cj2);
-    And(a=j3,b=pr,out=cj3);
-    And(a=cj1,b=cj2,out=ctemp);
-    And(a=ctemp,b=cj3,out=load);
+    //判斷跳躍的條件是什麼
+    And(a=true,b=j1,out=jlt1);          //is JLT(100)
+    And(a=false,b=j2,out=jlt2);
+    And(a=false,b=j3,out=jlt3);
+    Xor(a=jlt1,b=jlt2,out=cjlttmp);
+    Xor(a=cjlttmp,b=jlt3,out=cjlt);
+    And(a=false,b=j1,out=jeq1);          //is JEQ(010)
+    And(a=true,b=j2,out=jeq2);
+    And(a=false,b=j3,out=jeq3);
+    Xor(a=jeq1,b=jeq2,out=cjeqtmp);
+    Xor(a=cjeqtmp,b=jeq3,out=cjeq);
+    And(a=false,b=j1,out=jgt1);          //is JGT(001)
+    And(a=false,b=j2,out=jgt2);
+    And(a=true,b=j3,out=jgt3);
+    Xor(a=jgt1,b=jgt2,out=cjgttmp);
+    Xor(a=cjgttmp,b=jgt3,out=cjgt);
+    And(a=false,b=j1,out=jge1);          //is JGE(011)
+    And(a=true,b=j2,out=jge2);
+    And(a=true,b=j3,out=jge3);
+    And(a=jge1,b=jge2,out=cjgetmp);
+    And(a=cjgetmp,b=jge3,out=cjge);
+    And(a=true,b=j1,out=jne1);          //is JNE(101)
+    And(a=false,b=j2,out=jne2);
+    And(a=true,b=j3,out=jne3);
+    And(a=jne1,b=jne2,out=cjnetmp);
+    And(a=cjnetmp,b=jne3,out=cjne);
+    And(a=true,b=j1,out=jle1);          //is JLE(110)
+    And(a=true,b=j2,out=jle2);
+    And(a=false,b=j3,out=jle3);
+    And(a=jle1,b=jle2,out=cjletmp);
+    And(a=cjletmp,b=jle3,out=cjle);
 
-    PC(in=PCin,load=load,inc=inc,reset=reset,out=out,out[0..14]=pc);
+    //判斷輸出是否符合跳躍條件
+    Xor(a=j1,b=ng,out=ncj1);        //output<0??(100)
+    Not(in=ncj1,out=ccj1);
+    And(a=ccj1,b=cjlt,out=cj1);
+    Xor(a=j2,b=zr,out=ncj2);        //output=0??(010)
+    Not(in=ncj2,out=ccj2);
+    And(a=ccj2,b=cjeq,out=cj2);
+    Xor(a=j3,b=pr,out=ncj3);        //output>0??(001)
+    Not(in=ncj3,out=ccj3);
+    And(a=ccj3,b=cjgt,out=cj3);
+    Or(a=j2,b=j3,out=j4);           //output>=0??(011)
+    Xor(a=j4,b=nng,out=ncj4);
+    Not(in=ncj4,out=ccj4);
+    And(a=ccj4,b=cjge,out=cj4);
+    And(a=ng,b=nzr,out=lt);         //output!=0??(101)
+    And(a=lt,b=pr,out=j5);
+    Xor(a=j5,b=nzr,out=ncj5);
+    Not(in=ncj5,out=ccj5);
+    And(a=ccj5,b=cjne,out=cj5);
+    Or(a=j1,b=j2,out=j6);           //output<=0??(110)
+    Not(in=pr,out=npr);
+    Xor(a=j6,b=npr,out=ncj6);
+    Not(in=ncj6,out=ccj6);
+    And(a=ccj6,b=cjle,out=cj6);
+
+    Or(a=cj1,b=cj2,out=ctmp1);
+    Or(a=ctmp1,b=cj3,out=ctmp2);
+    Or(a=ctmp2,b=cj4,out=ctmp3);
+    Or(a=ctmp3,b=cj5,out=ctmp4);
+    Or(a=ctmp4,b=cj6,out=PCout);  
+    And(a=isC,b=PCout,out=load,out=sload);    //PC只有在輸入的指令為C指令的情況下才會進行載入
+
+    //判斷輸出是否為PC++
+    Or(a=j1,b=j2,out=jtemp);
+    Or(a=j3,b=jtemp,out=inctemp);
+    Not(in=inctemp,out=inc1);
+    Mux(a=true,b=inc1,sel=sload,out=inc);
+
+    PC(in=Aout,load=load,inc=inc,reset=reset,out=out,out[0..14]=pc);
 }
